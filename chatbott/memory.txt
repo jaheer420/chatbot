@@ -1,0 +1,214 @@
+from fastapi import FastAPI
+import mysql.connector
+import requests
+
+app = FastAPI()
+
+
+# -------------------------
+# DATABASE CONNECTION
+# -------------------------
+def get_connection():
+    return mysql.connector.connect(
+        host="localhost",
+        user="root",
+        password="",
+        database="innovel_db"
+    )
+
+
+# -------------------------
+# GET ALL COURSES
+# -------------------------
+def get_all_courses():
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True, buffered=True)
+
+    cursor.execute("SELECT * FROM courses")
+    courses = cursor.fetchall()
+
+    cursor.close()
+    conn.close()
+
+    return courses
+
+
+# -------------------------
+# SAVE CHAT MESSAGE
+# -------------------------
+def save_message(session_id, role, message):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute(
+        "INSERT INTO chat_memory (session_id, role, message) VALUES (%s, %s, %s)",
+        (session_id, role, message)
+    )
+
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+
+# -------------------------
+# GET CHAT HISTORY
+# -------------------------
+def get_chat_history(session_id):
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute(
+        "SELECT role, message FROM chat_memory WHERE session_id=%s ORDER BY id ASC LIMIT 10",
+        (session_id,)
+    )
+
+    history = cursor.fetchall()
+
+    cursor.close()
+    conn.close()
+
+    return history
+
+
+# -------------------------
+# EXISTING COURSE ENDPOINT (UNCHANGED)
+# -------------------------
+@app.get("/course/{name}")
+def course_details(name: str):
+
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True, buffered=True)
+
+    cursor.execute(
+        "SELECT * FROM courses WHERE course_name LIKE %s",
+        (f"%{name}%",)
+    )
+
+    course = cursor.fetchone()
+
+    cursor.close()
+    conn.close()
+
+    if not course:
+        return {"message": "Course not found"}
+
+    final_fee = course["offer_fees"] if course["offer_fees"] else course["fees"]
+
+    return {
+        "course": course["course_name"],
+        "duration": f"{course['duration_hours']} hours",
+        "fees": final_fee,
+        "syllabus": course["syllabus_highlight"]
+    }
+
+
+# -------------------------
+# OLLAMA FUNCTION
+# -------------------------
+def ask_ollama(prompt):
+    response = requests.post(
+        "http://localhost:11434/api/generate",
+        json={
+            "model": "llama3",
+            "prompt": prompt,
+            "stream": False
+        }
+    )
+
+    return response.json()["response"]
+
+
+# -------------------------
+# PROFESSIONAL MEMORY CHATBOT
+# -------------------------
+@app.get("/chat/{session_id}/{message}")
+def innovel_ai(session_id: str, message: str):
+
+    courses = get_all_courses()
+    message_lower = message.lower()
+
+    matched_course = None
+
+    # 1️⃣ Detect course from current message
+    for course in courses:
+        if course["course_name"].lower() in message_lower:
+            matched_course = course
+            break
+
+    # 2️⃣ 🔥 FIXED: Detect from previous USER messages only
+    if not matched_course:
+        history = get_chat_history(session_id)
+
+        for chat in reversed(history):
+
+            # ✅ ONLY check user messages
+            if chat["role"] != "user":
+                continue
+
+            previous_message = chat["message"].lower()
+
+            for course in courses:
+                if course["course_name"].lower() in previous_message:
+                    matched_course = course
+                    break
+
+            if matched_course:
+                break
+
+    # 3️⃣ Build course context
+    if matched_course:
+        final_fee = matched_course["offer_fees"] if matched_course["offer_fees"] else matched_course["fees"]
+
+        course_context = f"""
+Course Name: {matched_course['course_name']}
+Duration: {matched_course['duration_hours']} hours
+Fees: ₹{final_fee}
+Highlights: {matched_course['syllabus_highlight']}
+"""
+    else:
+        course_context = ""
+        for course in courses:
+            final_fee = course["offer_fees"] if course["offer_fees"] else course["fees"]
+
+            course_context += f"""
+Course Name: {course['course_name']}
+Duration: {course['duration_hours']} hours
+Fees: ₹{final_fee}
+Highlights: {course['syllabus_highlight']}
+------------------------
+"""
+
+    # 🔥 GET MEMORY HISTORY
+    history = get_chat_history(session_id)
+
+    history_text = ""
+    for chat in history:
+        history_text += f"{chat['role']}: {chat['message']}\n"
+
+    # Save current user message
+    save_message(session_id, "user", message)
+
+    prompt = f"""
+You are Innovel Institute Official AI Assistant.
+
+Use ONLY the provided course data.
+Do NOT guess.
+Be professional.
+
+Course Data:
+{course_context}
+
+Conversation History:
+{history_text}
+
+User: {message}
+
+Give structured clear answer.
+"""
+
+    ai_reply = ask_ollama(prompt)
+
+    # Save AI reply
+    save_message(session_id, "assistant", ai_reply)
+
+    return {"reply": ai_reply}
