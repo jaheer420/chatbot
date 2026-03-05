@@ -5,9 +5,6 @@ import requests
 app = FastAPI()
 
 
-# -------------------------
-# DATABASE CONNECTION
-# -------------------------
 def get_connection():
     return mysql.connector.connect(
         host="localhost",
@@ -17,9 +14,7 @@ def get_connection():
     )
 
 
-# -------------------------
-# GET ALL COURSES
-# -------------------------
+
 def get_all_courses():
     conn = get_connection()
     cursor = conn.cursor(dictionary=True, buffered=True)
@@ -33,9 +28,6 @@ def get_all_courses():
     return courses
 
 
-# -------------------------
-# SAVE CHAT MESSAGE
-# -------------------------
 def save_message(session_id, role, message):
     conn = get_connection()
     cursor = conn.cursor()
@@ -50,9 +42,6 @@ def save_message(session_id, role, message):
     conn.close()
 
 
-# -------------------------
-# GET CHAT HISTORY
-# -------------------------
 def get_chat_history(session_id):
     conn = get_connection()
     cursor = conn.cursor(dictionary=True)
@@ -70,9 +59,7 @@ def get_chat_history(session_id):
     return history
 
 
-# -------------------------
-# EXISTING COURSE ENDPOINT (UNCHANGED)
-# -------------------------
+
 @app.get("/course/{name}")
 def course_details(name: str):
 
@@ -102,9 +89,6 @@ def course_details(name: str):
     }
 
 
-# -------------------------
-# OLLAMA FUNCTION
-# -------------------------
 def ask_ollama(prompt):
     response = requests.post(
         "http://localhost:11434/api/generate",
@@ -118,9 +102,6 @@ def ask_ollama(prompt):
     return response.json()["response"]
 
 
-# -------------------------
-# PROFESSIONAL MEMORY CHATBOT
-# -------------------------
 @app.get("/chat/{session_id}/{message}")
 def innovel_ai(session_id: str, message: str):
 
@@ -210,5 +191,6 @@ Give structured clear answer.
 
     # Save AI reply
     save_message(session_id, "assistant", ai_reply)
+
 
     return {"reply": ai_reply}
