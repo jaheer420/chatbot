@@ -7,10 +7,6 @@ import os
 
 app = FastAPI()
 
-# ---------------------------------------------------
-# SERVE FRONTEND (NO CHANGE TO YOUR LOGIC)
-# ---------------------------------------------------
-
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 FRONTEND_DIR = os.path.join(BASE_DIR, "../frontend")
 
@@ -21,9 +17,6 @@ def load_frontend():
     return FileResponse(os.path.join(FRONTEND_DIR, "index.html"))
 
 
-# -------------------------
-# DATABASE CONNECTION
-# -------------------------
 def get_all_courses():
     conn = mysql.connector.connect(
         host="localhost",
@@ -42,9 +35,6 @@ def get_all_courses():
     return courses
 
 
-# -------------------------
-# EXISTING COURSE ENDPOINT (UNCHANGED)
-# -------------------------
 @app.get("/course/{name}")
 def course_details(name: str):
 
@@ -78,9 +68,6 @@ def course_details(name: str):
     }
 
 
-# -------------------------
-# OLLAMA FUNCTION (UNCHANGED)
-# -------------------------
 def ask_ollama(prompt):
     response = requests.post(
         "http://localhost:11434/api/generate",
@@ -99,9 +86,7 @@ def ask_ollama(prompt):
     return response.json()["response"]
 
 
-# -------------------------
-# FULLY AUTOMATIC INNOVEL AI (UNCHANGED LOGIC)
-# -------------------------
+
 @app.get("/chat/{message}")
 def innovel_ai(message: str):
 
@@ -182,4 +167,5 @@ User Question:
 """
 
         ai_reply = ask_ollama(prompt)
+
         return {"reply": ai_reply}
