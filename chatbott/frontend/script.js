@@ -1,4 +1,4 @@
-let demoShown = false;   // Controls first bot reply only
+let demoShown = false;   
 
 async function sendMessage() {
 
@@ -9,9 +9,7 @@ async function sendMessage() {
 
     const chatBody = document.getElementById("chat-body");
 
-    // ---------------------------
-    // ADD USER MESSAGE
-    // ---------------------------
+
     const userDiv = document.createElement("div");
     userDiv.className = "user-message";
     userDiv.innerText = message;
@@ -20,9 +18,7 @@ async function sendMessage() {
     input.value = "";
     chatBody.scrollTop = chatBody.scrollHeight;
 
-    // ---------------------------
-    // ADD LOADING MESSAGE
-    // ---------------------------
+
     const loadingDiv = document.createElement("div");
     loadingDiv.className = "bot-message";
     loadingDiv.innerText = "Typing...";
@@ -42,17 +38,12 @@ async function sendMessage() {
         // Remove loading
         chatBody.removeChild(loadingDiv);
 
-        // ---------------------------
-        // ADD BOT MESSAGE
-        // ---------------------------
         const botDiv = document.createElement("div");
         botDiv.className = "bot-message";
         botDiv.innerText = data.reply;
         chatBody.appendChild(botDiv);
 
-        // ---------------------------
-        // ADD LIVE DEMO (ONLY FIRST BOT RESPONSE)
-        // ---------------------------
+
         if (!demoShown) {
 
             const demoDiv = document.createElement("div");
@@ -94,11 +85,9 @@ async function sendMessage() {
 }
 
 
-// ---------------------------------
-// ENTER KEY SUPPORT
-// ---------------------------------
 document.getElementById("message-input").addEventListener("keypress", function (e) {
     if (e.key === "Enter") {
         sendMessage();
     }
+
 });
